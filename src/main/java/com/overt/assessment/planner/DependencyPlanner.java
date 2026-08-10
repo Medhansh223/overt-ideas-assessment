@@ -23,56 +23,81 @@ public final class DependencyPlanner {
             throw new DependencyPlannerException(DependencyPlannerConstants.TASK_LIST_CANNOT_BE_NULL);
         }
 
-        Map<String, TaskNode> taskMap = new HashMap<>();
-        for (TaskNode task : tasks) {
-            if (taskMap.containsKey(task.id())) {
-                String errorMsg = DependencyPlannerConstants.TASK_IDS_MUST_BE_UNIQUE + task.id();
+        int n = tasks.size();
+
+        // Map task IDs to integer indices (0 to n-1)
+        Map<String, Integer> idToIndexMap = new HashMap<>();
+        List<String> indexToIdMap = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            String taskId = tasks.get(i).id();
+            if (idToIndexMap.containsKey(taskId)) {
+                String errorMsg = DependencyPlannerConstants.TASK_IDS_MUST_BE_UNIQUE + taskId;
                 logger.error(errorMsg);
                 throw new DependencyPlannerException(errorMsg);
             }
-            taskMap.put(task.id(), task);
+            idToIndexMap.put(taskId, i);
+            indexToIdMap.add(taskId);
         }
 
-        Set<String> visiting = new HashSet<>();
-        Set<String> visited = new HashSet<>();
-        List<String> executionOrder = new ArrayList<>();
-
-        for (String taskId : taskMap.keySet()) {
-            if (!visited.contains(taskId)) {
-                depthFirstSearch(taskId, taskMap, visiting, visited, executionOrder);
-            }
+        // Initialize adjacency list using your structure: ArrayList<ArrayList<Integer>>
+        ArrayList<ArrayList<Integer>> adj = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            adj.add(new ArrayList<>());
         }
 
-        logger.info("Successfully planned execution order: {}", executionOrder);
-        return executionOrder;
-    }
-
-    private void depthFirstSearch(String nodeId, Map<String, TaskNode> taskMap, Set<String> visiting, Set<String> visited, List<String> executionOrder) {
-        visiting.add(nodeId);
-
-        TaskNode task = taskMap.get(nodeId);
-        if (task != null && task.dependsOn() != null) {
-            for (String dependencyId : task.dependsOn()) {
-                if (!taskMap.containsKey(dependencyId)) {
-                    String errorMsg = DependencyPlannerConstants.MISSING_DEPENDENCY_DETECTED + dependencyId;
-                    logger.warn("Validation failure: {} is missing. Referenced by task {}", dependencyId, nodeId);
+        // Populate adjacency list
+        for (int i = 0; i < n; i++) {
+            TaskNode task = tasks.get(i);
+            for (String depId : task.dependsOn()) {
+                if (!idToIndexMap.containsKey(depId)) {
+                    String errorMsg = DependencyPlannerConstants.MISSING_DEPENDENCY_DETECTED + depId;
+                    logger.warn("Validation failure: {} is missing. Referenced by task {}", depId, task.id());
                     throw new MissingDependencyException(errorMsg);
                 }
-
-                if (visiting.contains(dependencyId)) {
-                    String errorMsg = DependencyPlannerConstants.CYCLIC_DEPENDENCY_DETECTED + nodeId + " -> " + dependencyId;
-                    logger.error("Cyclic dependency loop detected: {}", errorMsg);
-                    throw new CircularDependencyException(errorMsg);
-                }
-
-                if (!visited.contains(dependencyId)) {
-                    depthFirstSearch(dependencyId, taskMap, visiting, visited, executionOrder);
-                }
+                int depIndex = idToIndexMap.get(depId);
+                // Edge points from dependency to the task (dependency must be completed first)
+                adj.get(depIndex).add(i);
             }
         }
 
-        visiting.remove(nodeId);
-        visited.add(nodeId);
-        executionOrder.add(nodeId);
+        // Initialize stack, visited vector (vis), and recursion tracking (visiting) for cycle safety
+        Stack<Integer> st = new Stack<>();
+        int[] vis = new int[n];
+        int[] visiting = new int[n]; // 1 if in recursion stack, 0 otherwise
+
+        // Run topological sort
+        for (int i = 0; i < n; i++) {
+            if (vis[i] == 0) {
+                findTopoSort(i, vis, visiting, adj, st, indexToIdMap);
+            }
+        }
+
+        // Pop elements from Stack into the result vector (topo)
+        ArrayList<String> topo = new ArrayList<>();
+        while (!st.isEmpty()) {
+            topo.add(indexToIdMap.get(st.pop()));
+        }
+
+        logger.info("Successfully planned execution order: {}", topo);
+        return topo;
+    }
+
+    private void findTopoSort(int node, int[] vis, int[] visiting, ArrayList<ArrayList<Integer>> adj, Stack<Integer> st, List<String> indexToIdMap) {
+        vis[node] = 1;
+        visiting[node] = 1; // Mark as visiting for cycle detection
+
+        for (Integer neighbor : adj.get(node)) {
+            if (visiting[neighbor] == 1) {
+                String errorMsg = DependencyPlannerConstants.CYCLIC_DEPENDENCY_DETECTED + indexToIdMap.get(node) + " -> " + indexToIdMap.get(neighbor);
+                logger.error("Cyclic dependency loop detected: {}", errorMsg);
+                throw new CircularDependencyException(errorMsg);
+            }
+            if (vis[neighbor] == 0) {
+                findTopoSort(neighbor, vis, visiting, adj, st, indexToIdMap);
+            }
+        }
+
+        visiting[node] = 0; // Backtrack
+        st.push(node);
     }
 }

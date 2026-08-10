@@ -4,45 +4,138 @@ A clean, production-ready implementation of the technical assessment using **Jav
 
 ---
 
-## Project Structure
+## Architecture Design
 
-This project follows standard corporate packaging patterns, adhering strictly to SOLID design principles, clean code practices (DRY, meaningful self-documenting naming conventions, and constants separation), and comprehensive automated testing.
+### High-Level Architecture (HLD)
 
-- **`part_a/` (Dependency Planner)**:
-  - Isolated dependency-free library component that plans execution orders based on topological sorting.
-- **`part_b/` (Smart Task Queue API)**:
-  - Layered REST API using Spring Web, Spring Data JPA, and local H2 file storage.
-  - Implements the **Strategy Pattern** for the task recommendation engine.
-  - Exception handling using Spring AOP (`@ControllerAdvice`).
-  - API documentation using Springdoc OpenAPI / Swagger UI.
-  - Structured console logging using Logback configuration.
+The system consists of two primary modules: the pure dependency-free algorithms module (**Part A**) and the web service module (**Part B**).
+
+```mermaid
+graph TD
+    Client[HTTP Client / Swagger UI] -->|REST API Requests| TaskController[TaskController]
+    TaskController -->|CRUD operations & recommendation triggers| TaskService[TaskService]
+    TaskService -->|Persists tasks| TaskRepository[TaskRepository]
+    TaskRepository -->|Executes SQL| DB[(H2 Persistent File DB)]
+    
+    subgraph Recommendation Engine
+        TaskService -->|Queries best task| TaskRecommendationStrategy[TaskRecommendationStrategy Interface]
+        TaskRecommendationStrategy -->|Default logic| DefaultStrategy[DefaultRecommendationStrategy]
+    end
+
+    subgraph Topological Sort Library
+        Solution[Solution Class] -->|Invokes planning| DependencyPlanner[DependencyPlanner]
+    end
+```
+
+### Low-Level Design (LLD)
+
+```mermaid
+classDiagram
+    class TaskController {
+        -TaskService taskService
+        +createTask(TaskRequestDto) ResponseEntity
+        +listTasks(TaskStatus) ResponseEntity
+        +updateTaskStatus(String, TaskStatus) ResponseEntity
+        +deleteTask(String) ResponseEntity
+        +getNextRecommendedPendingTask() ResponseEntity
+    }
+
+    class TaskService {
+        -TaskRepository taskRepository
+        -TaskRecommendationStrategy recommendationStrategy
+        +createTask(TaskRequestDto) TaskResponseDto
+        +listTasks(TaskStatus) List~TaskResponseDto~
+        +updateTaskStatus(String, TaskStatus) TaskResponseDto
+        +deleteTask(String) void
+        +recommendNextPendingTask() TaskResponseDto
+    }
+
+    class TaskRecommendationStrategy {
+        <<interface>>
+        +recommendNextTask(List~Task~) Optional~Task~
+    }
+
+    class DefaultRecommendationStrategy {
+        +recommendNextTask(List~Task~) Optional~Task~
+        -getPriorityWeight(TaskPriority) int
+    }
+
+    class DependencyPlanner {
+        +planExecutionOrder(List~TaskNode~) List~String~
+        -findTopoSort(int, int[], int[], ArrayList, Stack, List) void
+    }
+
+    TaskController --> TaskService : uses
+    TaskService --> TaskRecommendationStrategy : delegates selection
+    DefaultRecommendationStrategy ..|> TaskRecommendationStrategy : implements
+    TaskService --> TaskRepository : uses
+```
+
+---
+
+## Strategy & Factory Pattern Extensibility Guidelines
+
+Currently, the application implements the **Strategy Pattern** where `TaskService` delegates task recommendation decisions to the `TaskRecommendationStrategy` abstraction.
+
+### Scaling to the Strategy Factory Pattern
+
+If the system requirements grow to support multiple recommendation strategies dynamically at runtime (e.g., Shortest-Job-First, Resource-Capacity-Based) triggered by API users, you can scale this to a **Strategy Factory** pattern without modifying `TaskService` core logic:
+
+1. **Add identifier to Strategy**:
+   ```java
+   public interface TaskRecommendationStrategy {
+       Optional<Task> recommendNextTask(List<Task> pendingTasks);
+       String getStrategyType(); // e.g., "DEFAULT", "SJF"
+   }
+   ```
+
+2. **Implement a Factory**:
+   ```java
+   @Component
+   public class TaskRecommendationStrategyFactory {
+       private final Map<String, TaskRecommendationStrategy> strategies;
+
+       public TaskRecommendationStrategyFactory(List<TaskRecommendationStrategy> strategyList) {
+           this.strategies = strategyList.stream()
+               .collect(Collectors.toMap(s -> s.getStrategyType().toUpperCase(), s -> s));
+       }
+
+       public TaskRecommendationStrategy getStrategy(String type) {
+           return strategies.getOrDefault(type.toUpperCase(), strategies.get("DEFAULT"));
+       }
+   }
+   ```
+
+3. **Inject the Factory into `TaskService`**:
+   `TaskService` can resolve strategies dynamically:
+   ```java
+   TaskRecommendationStrategy strategy = strategyFactory.getStrategy(clientRequestedType);
+   ```
 
 ---
 
 ## Rationale & Complexity Analysis
 
 ### Part A - Topological Sort Complexity
-We implemented topological sorting using a depth-first search (DFS) with three-color node states (`UNVISITED`, `VISITING`, `VISITED`):
-- **Time Complexity**: $\mathcal{O}(V + E)$, where $V$ is the number of tasks and $E$ is the number of dependencies. Each task is visited at most once, and each dependency edge is scanned once.
-- **Space Complexity**: $\mathcal{O}(V + E)$ to store the adjacency map representation of the graph, the recursion stack, and the node state mapping.
+We implemented topological sorting using a depth-first search (DFS) with a visited array (`vis`) and a loop-checking recursion stack array (`visiting`):
+- **Time Complexity**: $\mathcal{O}(V + E)$, where $V$ is the number of tasks and $E$ is the number of dependencies.
+- **Space Complexity**: $\mathcal{O}(V + E)$ to store the adjacency list representation, the recursion stack, and the index maps.
 
 ### Part B - Deterministic Recommendation Engine
-The recommendation engine sorts pending tasks by applying a strict, deterministic comparator:
-1. **Priority**: `CRITICAL` (weight 4) > `HIGH` (weight 3) > `MEDIUM` (weight 2) > `LOW` (weight 1).
-2. **Due Date**: Tasks with closer/earlier due dates are prioritized. Tasks without due dates are pushed to the end.
-3. **Creation Time**: Oldest created tasks first (FIFO tie-breaker).
-
-Sorting complexity is $\mathcal{O}(N \log N)$ where $N$ is the number of pending tasks.
+The recommendation engine sorts pending tasks by:
+1. **Priority**: `CRITICAL` > `HIGH` > `MEDIUM` > `LOW`.
+2. **Due Date**: Earliest first (nulls sorted last).
+3. **Creation Time**: Oldest created tasks first.
 
 ---
 
 ## Setup and Running Instructions
 
 ### Prerequisites
-- JDK 17 must be installed and configured on your system (managed automatically if run via the provided scripts).
+- JDK 17 must be installed and configured on your system.
 
 ### 1. Compile and Run Tests
-To run all 26 automated unit and integration tests covering the topological sorting edge cases and REST endpoints:
+To run all 26 automated unit and integration tests:
 ```bash
 ./mvnw clean test
 ```
@@ -54,6 +147,5 @@ To start the REST API on port `8080`:
 ```
 
 ### 3. Verify Endpoints & Interactive API Docs
-Once the server starts:
-- **Swagger UI**: Access the interactive API docs at [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) to try out endpoints directly.
-- **H2 Database Console**: Access the database console at [http://localhost:8080/h2-console](http://localhost:8080/h2-console) (JDBC URL: `jdbc:h2:file:./data/tasksdb`, Username: `sa`, Password: `password`).
+- **Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+- **H2 Database Console**: [http://localhost:8080/h2-console](http://localhost:8080/h2-console) (JDBC URL: `jdbc:h2:file:./data/tasksdb`, Username: `sa`, Password: `password`).
