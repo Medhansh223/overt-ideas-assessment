@@ -4,12 +4,29 @@ A clean, production-ready implementation of the technical assessment using **Jav
 
 ---
 
-## Architecture Design
+## Architectural Design (Before & After Factory Integration)
 
-### High-Level Architecture (HLD)
+### 1. High-Level Architecture (HLD)
 
-The system consists of two primary modules: the pure dependency-free algorithms library (**Part A**) and the REST web service module (**Part B**).
+#### Version A: Current System (Without Factory Pattern)
+```mermaid
+graph TD
+    Client[HTTP Client / Swagger UI] -->|REST API Requests| TaskController[TaskController]
+    TaskController -->|CRUD operations & recommendation triggers| TaskService[TaskService]
+    TaskService -->|Persists tasks| TaskRepository[TaskRepository]
+    TaskRepository -->|Executes SQL| DB[(H2 Persistent File DB)]
+    
+    subgraph Recommendation Engine
+        TaskService -->|Queries best task| TaskRecommendationStrategy[TaskRecommendationStrategy Interface]
+        TaskRecommendationStrategy -->|Default logic| DefaultStrategy[DefaultRecommendationStrategy]
+    end
 
+    subgraph Topological Sort Library
+        Solution[Solution Class] -->|Invokes planning| DependencyPlanner[DependencyPlanner]
+    end
+```
+
+#### Version B: Scaled System (With Strategy Factory Integration)
 ```mermaid
 graph TD
     Client[HTTP Client / Swagger UI] -->|REST API Requests| TaskController[TaskController]
@@ -29,8 +46,54 @@ graph TD
     end
 ```
 
-### Low-Level Design (LLD) with Factory Integration
+---
 
+### 2. Low-Level Design (LLD)
+
+#### Version A: Current System (Without Factory Pattern)
+```mermaid
+classDiagram
+    class TaskController {
+        -TaskService taskService
+        +createTask(TaskRequestDto) ResponseEntity
+        +listTasks(TaskStatus) ResponseEntity
+        +updateTaskStatus(String, TaskStatus) ResponseEntity
+        +deleteTask(String) ResponseEntity
+        +getNextRecommendedPendingTask() ResponseEntity
+    }
+
+    class TaskService {
+        -TaskRepository taskRepository
+        -TaskRecommendationStrategy recommendationStrategy
+        +createTask(TaskRequestDto) TaskResponseDto
+        +listTasks(TaskStatus) List~TaskResponseDto~
+        +updateTaskStatus(String, TaskStatus) TaskResponseDto
+        +deleteTask(String) void
+        +recommendNextPendingTask() TaskResponseDto
+    }
+
+    class TaskRecommendationStrategy {
+        <<interface>>
+        +recommendNextTask(List~Task~) Optional~Task~
+    }
+
+    class DefaultRecommendationStrategy {
+        +recommendNextTask(List~Task~) Optional~Task~
+        -getPriorityWeight(TaskPriority) int
+    }
+
+    class DependencyPlanner {
+        +planExecutionOrder(List~TaskNode~) List~String~
+        -findTopoSort(int, int[], int[], ArrayList, Stack, List) void
+    }
+
+    TaskController --> TaskService : uses
+    TaskService --> TaskRecommendationStrategy : delegates selection
+    DefaultRecommendationStrategy ..|> TaskRecommendationStrategy : implements
+    TaskService --> TaskRepository : uses
+```
+
+#### Version B: Scaled System (With Strategy Factory Integration)
 ```mermaid
 classDiagram
     class TaskController {
