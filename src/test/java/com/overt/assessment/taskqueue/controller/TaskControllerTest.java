@@ -12,6 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -71,13 +74,13 @@ class TaskControllerTest {
     void shouldListTasksSuccessfully() throws Exception {
         // Arrange
         TaskResponseDto response = new TaskResponseDto("task-1", "Implement API", TaskPriority.HIGH, TaskStatus.PENDING, null, 4.0, LocalDateTime.now());
-        when(taskService.listTasks(null)).thenReturn(List.of(response));
+        when(taskService.listTasks(any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(response), PageRequest.of(0, 20), 1));
 
         // Act & Assert
         mockMvc.perform(get(TaskQueueConstants.API_BASE_PATH))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("task-1"))
-                .andExpect(jsonPath("$[0].title").value("Implement API"));
+                .andExpect(jsonPath("$.content[0].id").value("task-1"))
+                .andExpect(jsonPath("$.content[0].title").value("Implement API"));
     }
 
     @Test

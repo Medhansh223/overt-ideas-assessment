@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -38,8 +41,10 @@ public class TaskController {
     @GetMapping
     @Operation(summary = "List tasks", description = "Lists all tasks with optional status filter.")
     @ApiResponse(responseCode = "200", description = "Tasks retrieved successfully")
-    public ResponseEntity<List<TaskResponseDto>> listTasks(@RequestParam(required = false) TaskStatus status) {
-        List<TaskResponseDto> tasks = taskService.listTasks(status);
+    public ResponseEntity<Page<TaskResponseDto>> listTasks(
+            @RequestParam(required = false) TaskStatus status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<TaskResponseDto> tasks = taskService.listTasks(status, pageable);
         return ResponseEntity.ok(tasks);
     }
 

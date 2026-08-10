@@ -10,6 +10,8 @@ import com.overt.assessment.taskqueue.exception.TaskNotFoundException;
 import com.overt.assessment.taskqueue.repository.TaskRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,17 +62,15 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public List<TaskResponseDto> listTasks(TaskStatus status) {
-        logger.info("Fetching tasks with status filter: {}", status);
-        List<Task> tasks;
+    public Page<TaskResponseDto> listTasks(TaskStatus status, Pageable pageable) {
+        logger.info("Fetching paginated tasks with status filter: {} and page settings: {}", status, pageable);
+        Page<Task> tasks;
         if (status != null) {
-            tasks = taskRepository.findByStatus(status);
+            tasks = taskRepository.findByStatus(status, pageable);
         } else {
-            tasks = taskRepository.findAll();
+            tasks = taskRepository.findAll(pageable);
         }
-        return tasks.stream()
-            .map(TaskResponseDto::fromEntity)
-            .collect(Collectors.toList());
+        return tasks.map(TaskResponseDto::fromEntity);
     }
 
     @Transactional

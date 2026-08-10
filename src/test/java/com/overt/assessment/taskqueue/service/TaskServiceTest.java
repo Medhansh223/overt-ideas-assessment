@@ -12,6 +12,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -68,6 +73,26 @@ class TaskServiceTest {
         assertThatThrownBy(() -> taskService.createTask(request))
             .isInstanceOf(DuplicateTaskIdException.class)
             .hasMessageContaining("Task ID already exists");
+    }
+
+    @Test
+    void shouldListTasksSuccessfully() {
+        // Arrange
+        Task task = Task.builder()
+            .id("task-id")
+            .title("Read code")
+            .status(TaskStatus.PENDING)
+            .build();
+        PageRequest pageRequest = PageRequest.of(0, 20);
+        when(taskRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(task), pageRequest, 1));
+
+        // Act
+        Page<TaskResponseDto> response = taskService.listTasks(null, pageRequest);
+
+        // Assert
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).id()).isEqualTo("task-id");
+        verify(taskRepository, times(1)).findAll(any(Pageable.class));
     }
 
     @Test
