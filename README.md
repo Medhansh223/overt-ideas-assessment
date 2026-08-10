@@ -147,6 +147,32 @@ classDiagram
 
 ---
 
+## Architectural Trade-offs
+
+During implementation, we weighed several core architectural trade-offs:
+
+1. **Database Selection (H2 File-based vs. PostgreSQL/MySQL Docker)**:
+   - *Trade-off*: We chose an **H2 file-backed local database** (`tasksdb`).
+   - *Pros*: Zero setup overhead for the reviewer; starts instantly with the application and persists data across restarts.
+   - *Cons*: Not suitable for horizontally scaled production clouds (which require central databases like PostgreSQL).
+   
+2. **Recommendation Sorting Location (In-Memory Java Stream Comparator vs. SQL/JPQL ORDER BY)**:
+   - *Trade-off*: We fetch pending tasks into memory and sort them via a Java `Comparator` in the Strategy bean.
+   - *Pros*: Keeps Business Logic decoupled from the Database Layer (fulfilling DDD/SOLID). Allows us to easily swap or test strategies in unit tests without database mocks.
+   - *Cons*: If there are millions of *pending* tasks, pulling them all into memory to sort in Java will cause latency. If pending tasks grew past $\approx 10,000$, we would push the sorting to the database level via a custom JPQL query.
+
+3. **Topological Sort Implementation (DFS vs. Kahn's Algorithm)**:
+   - *Trade-off*: We selected a DFS-based traversal with `vis` and `visiting` arrays.
+   - *Pros*: Detects cyclic loops immediately (as soon as a back-edge is hit) and returns the exact node causing the loop, instead of waiting for the full queue to run.
+   - *Cons*: Deeply nested linear graphs (e.g. 10,000 tasks in a single line) could cause a `StackOverflowError` in recursive DFS. Kahn's algorithm (BFS-queue based) is stack-safe but cycle diagnostics are less immediate.
+
+4. **Extensibility Structure (Strategy Pattern vs. Direct Service Logic)**:
+   - *Trade-off*: Created `TaskRecommendationStrategy` instead of coding the sorting logic directly inside `TaskService`.
+   - *Pros*: Enforces the Open/Closed Principle. Service remains clean.
+   - *Cons*: Adds minor boilerplate (more files and interfaces to manage) for a simple application.
+
+---
+
 ## Complexity Analysis (Time & Space)
 
 ### Part A - Topological Sort
