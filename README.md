@@ -132,15 +132,16 @@ classDiagram
         -getPriorityWeight(TaskPriority) int
     }
 
-    class DependencyPlanner {
-        +planExecutionOrder(List~TaskNode~) List~String~
-        -findTopoSort(int, int[], int[], ArrayList, Stack, List) void
+    class SjfRecommendationStrategy {
+        +recommendNextTask(List~Task~) Optional~Task~
+        +getStrategyType() String
     }
 
     TaskController --> TaskService : uses
     TaskService --> TaskRecommendationStrategyFactory : uses
     TaskRecommendationStrategyFactory --> TaskRecommendationStrategy : creates/resolves
     DefaultRecommendationStrategy ..|> TaskRecommendationStrategy : implements
+    SjfRecommendationStrategy ..|> TaskRecommendationStrategy : implements
     TaskService --> TaskRepository : uses
 ```
 
