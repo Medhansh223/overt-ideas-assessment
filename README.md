@@ -56,7 +56,7 @@ classDiagram
     class TaskController {
         -TaskService taskService
         +createTask(TaskRequestDto) ResponseEntity
-        +listTasks(TaskStatus) ResponseEntity
+        +listTasks(TaskStatus, Pageable) ResponseEntity
         +updateTaskStatus(String, TaskStatus) ResponseEntity
         +deleteTask(String) ResponseEntity
         +getNextRecommendedPendingTask() ResponseEntity
@@ -66,7 +66,7 @@ classDiagram
         -TaskRepository taskRepository
         -TaskRecommendationStrategy recommendationStrategy
         +createTask(TaskRequestDto) TaskResponseDto
-        +listTasks(TaskStatus) List~TaskResponseDto~
+        +listTasks(TaskStatus, Pageable) Page~TaskResponseDto~
         +updateTaskStatus(String, TaskStatus) TaskResponseDto
         +deleteTask(String) void
         +recommendNextPendingTask() TaskResponseDto
@@ -99,7 +99,7 @@ classDiagram
     class TaskController {
         -TaskService taskService
         +createTask(TaskRequestDto) ResponseEntity
-        +listTasks(TaskStatus) ResponseEntity
+        +listTasks(TaskStatus, Pageable) ResponseEntity
         +updateTaskStatus(String, TaskStatus) ResponseEntity
         +deleteTask(String) ResponseEntity
         +getNextRecommendedPendingTask(String) ResponseEntity
@@ -109,7 +109,7 @@ classDiagram
         -TaskRepository taskRepository
         -TaskRecommendationStrategyFactory strategyFactory
         +createTask(TaskRequestDto) TaskResponseDto
-        +listTasks(TaskStatus) List~TaskResponseDto~
+        +listTasks(TaskStatus, Pageable) Page~TaskResponseDto~
         +updateTaskStatus(String, TaskStatus) TaskResponseDto
         +deleteTask(String) void
         +recommendNextPendingTask(String) TaskResponseDto
@@ -186,12 +186,14 @@ Below is the specification of the REST API endpoints. You can also view and test
   - `201 Created`: Returns the created task entity with a generation timestamp.
   - `400 Bad Request`: Validation failure (e.g. blank title) or duplicate task ID.
 
-### 2. List Tasks (with optional Status Filter)
-- **Route**: `GET /api/tasks?status=PENDING`
+### 2. List Tasks (with optional Status Filter and Pagination)
+- **Route**: `GET /api/tasks?status=PENDING&page=0&size=20`
 - **Request Parameters**:
   - `status` (Optional): Filter tasks by state (`PENDING`, `IN_PROGRESS`, `COMPLETED`).
+  - `page` (Optional, defaults to `0`): Page index to retrieve.
+  - `size` (Optional, defaults to `20`): Page size limit.
 - **Responses**:
-  - `200 OK`: Returns an array of tasks.
+  - `200 OK`: Returns a paginated response wrapper containing the list of tasks inside the `content` key.
 
 ### 3. Update Task Status
 - **Route**: `PATCH /api/tasks/{id}?status=IN_PROGRESS`
@@ -219,7 +221,7 @@ Below is the specification of the REST API endpoints. You can also view and test
 - JDK 17 must be installed and configured on your system.
 
 ### 1. Compile and Run Tests
-To run all 26 automated unit and integration tests:
+To run all 27 automated unit and integration tests:
 ```bash
 ./mvnw clean test
 ```
