@@ -39,7 +39,6 @@ public final class DependencyPlanner {
             throw new DependencyPlannerException(DependencyPlannerConstants.TASK_LIST_CANNOT_BE_NULL);
         }
 
-        // Build adjacency map and validate unique IDs
         Map<String, TaskNode> taskMap = new HashMap<>();
         for (TaskNode task : tasks) {
             if (taskMap.containsKey(task.id())) {
@@ -50,7 +49,6 @@ public final class DependencyPlanner {
             taskMap.put(task.id(), task);
         }
 
-        // Map tracking DFS visit states
         Map<String, NodeState> stateMap = new HashMap<>();
         for (String taskId : taskMap.keySet()) {
             stateMap.put(taskId, NodeState.UNVISITED);
@@ -58,7 +56,6 @@ public final class DependencyPlanner {
 
         List<String> executionOrder = new ArrayList<>();
 
-        // Perform DFS from every unvisited node
         for (String taskId : taskMap.keySet()) {
             if (stateMap.get(taskId) == NodeState.UNVISITED) {
                 depthFirstSearch(taskId, taskMap, stateMap, executionOrder);
@@ -75,7 +72,6 @@ public final class DependencyPlanner {
         TaskNode task = taskMap.get(nodeId);
         if (task != null && task.dependsOn() != null) {
             for (String dependencyId : task.dependsOn()) {
-                // 1. Detect missing dependency references
                 if (!taskMap.containsKey(dependencyId)) {
                     String errorMsg = DependencyPlannerConstants.MISSING_DEPENDENCY_DETECTED + dependencyId;
                     logger.warn("Validation failure: {} is missing. Referenced by task {}", dependencyId, nodeId);
@@ -83,7 +79,6 @@ public final class DependencyPlanner {
                 }
 
                 NodeState depState = stateMap.get(dependencyId);
-                // 2. Detect cyclic reference
                 if (depState == NodeState.VISITING) {
                     String errorMsg = DependencyPlannerConstants.CYCLIC_DEPENDENCY_DETECTED + nodeId + " -> " + dependencyId;
                     logger.error("Cyclic dependency loop detected: {}", errorMsg);
@@ -97,6 +92,6 @@ public final class DependencyPlanner {
         }
 
         stateMap.put(nodeId, NodeState.VISITED);
-        executionOrder.add(nodeId); // Post-order insert represents dependency order
+        executionOrder.add(nodeId);
     }
 }
