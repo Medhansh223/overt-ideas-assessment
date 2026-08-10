@@ -173,6 +173,17 @@ During implementation, we weighed several core architectural trade-offs:
 
 ---
 
+## Optional Enhancements Implemented
+
+While optional, we implemented the following enhancements to maximize production readiness:
+
+1. **Docker Containerization**: Provided a multi-stage `Dockerfile` to build and package the application into a lightweight running container.
+2. **Database Pagination**: Exposes Spring Data JPA `Page` and `Pageable` parameters on list operations, ensuring JVM/Database memory bounds.
+3. **Structured Logging**: Logback integration (`logback-spring.xml`) configured to log unified metadata format.
+4. **API Documentation**: Auto-generated Swagger interactive documentation UI via Springdoc OpenAPI.
+
+---
+
 ## Complexity Analysis (Time & Space)
 
 ### Part A - Topological Sort
@@ -244,20 +255,30 @@ Below is the specification of the REST API endpoints. You can also view and test
 ## Setup and Running Instructions
 
 ### Prerequisites
-- JDK 17 must be installed and configured on your system.
+- JDK 17 must be installed and configured on your system (if running locally).
+- Docker must be installed (if running containerized).
 
-### 1. Compile and Run Tests
-To run all 27 automated unit and integration tests:
+### Option 1: Run inside Docker (Recommended)
+You can run the application without installing any Java tools on your host machine:
 ```bash
-./mvnw clean test
+# 1. Build the Docker image
+docker build -t task-queue-app .
+
+# 2. Run the Docker container
+docker run -p 8080:8080 task-queue-app
 ```
 
-### 2. Run the Spring Boot Server
-To start the REST API on port `8080`:
+### Option 2: Run Locally (Using Maven Wrapper)
+If running locally:
 ```bash
+# Compile and run tests
+export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
+./mvnw clean test
+
+# Run the Spring Boot server
 ./mvnw spring-boot:run
 ```
 
-### 3. Verify Endpoints & Interactive API Docs
+### Verification & DB Access
 - **Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 - **H2 Database Console**: [http://localhost:8080/h2-console](http://localhost:8080/h2-console) (JDBC URL: `jdbc:h2:file:./data/tasksdb`, Username: `sa`, Password: `password`).
