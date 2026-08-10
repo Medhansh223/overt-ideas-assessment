@@ -8,7 +8,7 @@ A clean, production-ready implementation of the technical assessment using **Jav
 
 ### High-Level Architecture (HLD)
 
-The system consists of two primary modules: the pure dependency-free algorithms module (**Part A**) and the web service module (**Part B**).
+The system consists of two primary modules: the pure dependency-free algorithms library (**Part A**) and the REST web service module (**Part B**).
 
 ```mermaid
 graph TD
@@ -17,9 +17,11 @@ graph TD
     TaskService -->|Persists tasks| TaskRepository[TaskRepository]
     TaskRepository -->|Executes SQL| DB[(H2 Persistent File DB)]
     
-    subgraph Recommendation Engine
-        TaskService -->|Queries best task| TaskRecommendationStrategy[TaskRecommendationStrategy Interface]
+    subgraph Dynamic Recommendation Engine
+        TaskService -->|Requests strategy by name| StrategyFactory[TaskRecommendationStrategyFactory]
+        StrategyFactory -->|Resolves strategy| TaskRecommendationStrategy[TaskRecommendationStrategy Interface]
         TaskRecommendationStrategy -->|Default logic| DefaultStrategy[DefaultRecommendationStrategy]
+        TaskRecommendationStrategy -->|Alternative logic| AlternativeStrategy[SjfRecommendationStrategy]
     end
 
     subgraph Topological Sort Library
@@ -27,7 +29,7 @@ graph TD
     end
 ```
 
-### Low-Level Design (LLD)
+### Low-Level Design (LLD) with Factory Integration
 
 ```mermaid
 classDiagram
@@ -37,26 +39,33 @@ classDiagram
         +listTasks(TaskStatus) ResponseEntity
         +updateTaskStatus(String, TaskStatus) ResponseEntity
         +deleteTask(String) ResponseEntity
-        +getNextRecommendedPendingTask() ResponseEntity
+        +getNextRecommendedPendingTask(String) ResponseEntity
     }
 
     class TaskService {
         -TaskRepository taskRepository
-        -TaskRecommendationStrategy recommendationStrategy
+        -TaskRecommendationStrategyFactory strategyFactory
         +createTask(TaskRequestDto) TaskResponseDto
         +listTasks(TaskStatus) List~TaskResponseDto~
         +updateTaskStatus(String, TaskStatus) TaskResponseDto
         +deleteTask(String) void
-        +recommendNextPendingTask() TaskResponseDto
+        +recommendNextPendingTask(String) TaskResponseDto
+    }
+
+    class TaskRecommendationStrategyFactory {
+        -Map~String, TaskRecommendationStrategy~ strategies
+        +getStrategy(String) TaskRecommendationStrategy
     }
 
     class TaskRecommendationStrategy {
         <<interface>>
         +recommendNextTask(List~Task~) Optional~Task~
+        +getStrategyType() String
     }
 
     class DefaultRecommendationStrategy {
         +recommendNextTask(List~Task~) Optional~Task~
+        +getStrategyType() String
         -getPriorityWeight(TaskPriority) int
     }
 
@@ -66,66 +75,79 @@ classDiagram
     }
 
     TaskController --> TaskService : uses
-    TaskService --> TaskRecommendationStrategy : delegates selection
+    TaskService --> TaskRecommendationStrategyFactory : uses
+    TaskRecommendationStrategyFactory --> TaskRecommendationStrategy : creates/resolves
     DefaultRecommendationStrategy ..|> TaskRecommendationStrategy : implements
     TaskService --> TaskRepository : uses
 ```
 
 ---
 
-## Strategy & Factory Pattern Extensibility Guidelines
+## Complexity Analysis (Time & Space)
 
-Currently, the application implements the **Strategy Pattern** where `TaskService` delegates task recommendation decisions to the `TaskRecommendationStrategy` abstraction.
+### Part A - Topological Sort
+We implemented topological sorting using a depth-first search (DFS) with a visited array (`vis`) and a loop-checking recursion stack array (`visiting`):
+- **Time Complexity**: $\mathcal{O}(V + E)$, where $V$ is the number of tasks and $E$ is the number of dependencies. We visit each task once, and scan its dependency edges once.
+- **Space Complexity**: $\mathcal{O}(V + E)$ to store the adjacency list representation, the recursion stack, and the index translation maps.
 
-### Scaling to the Strategy Factory Pattern
-
-If the system requirements grow to support multiple recommendation strategies dynamically at runtime (e.g., Shortest-Job-First, Resource-Capacity-Based) triggered by API users, you can scale this to a **Strategy Factory** pattern without modifying `TaskService` core logic:
-
-1. **Add identifier to Strategy**:
-   ```java
-   public interface TaskRecommendationStrategy {
-       Optional<Task> recommendNextTask(List<Task> pendingTasks);
-       String getStrategyType(); // e.g., "DEFAULT", "SJF"
-   }
-   ```
-
-2. **Implement a Factory**:
-   ```java
-   @Component
-   public class TaskRecommendationStrategyFactory {
-       private final Map<String, TaskRecommendationStrategy> strategies;
-
-       public TaskRecommendationStrategyFactory(List<TaskRecommendationStrategy> strategyList) {
-           this.strategies = strategyList.stream()
-               .collect(Collectors.toMap(s -> s.getStrategyType().toUpperCase(), s -> s));
-       }
-
-       public TaskRecommendationStrategy getStrategy(String type) {
-           return strategies.getOrDefault(type.toUpperCase(), strategies.get("DEFAULT"));
-       }
-   }
-   ```
-
-3. **Inject the Factory into `TaskService`**:
-   `TaskService` can resolve strategies dynamically:
-   ```java
-   TaskRecommendationStrategy strategy = strategyFactory.getStrategy(clientRequestedType);
-   ```
+### Part B - Smart Task Queue API
+The recommendation engine retrieves pending tasks and sorts them:
+- **Time Complexity**:
+  - **CRUD Operations (Create, Update, Delete)**: $\mathcal{O}(1)$ average lookup and writes using database indexes on the primary key.
+  - **Next Task Recommendation**: $\mathcal{O}(N \log N)$ where $N$ is the number of pending tasks (due to sorting the tasks using the deterministic comparator).
+- **Space Complexity**:
+  - **Memory Space**: $\mathcal{O}(N)$ where $N$ is the number of pending tasks loaded into memory for processing.
+  - **Database Storage**: $\mathcal{O}(T)$ where $T$ is the total tasks stored in the H2 file database.
 
 ---
 
-## Rationale & Complexity Analysis
+## API Documentation
 
-### Part A - Topological Sort Complexity
-We implemented topological sorting using a depth-first search (DFS) with a visited array (`vis`) and a loop-checking recursion stack array (`visiting`):
-- **Time Complexity**: $\mathcal{O}(V + E)$, where $V$ is the number of tasks and $E$ is the number of dependencies.
-- **Space Complexity**: $\mathcal{O}(V + E)$ to store the adjacency list representation, the recursion stack, and the index maps.
+Below is the specification of the REST API endpoints. You can also view and test these interactively via the built-in Swagger UI.
 
-### Part B - Deterministic Recommendation Engine
-The recommendation engine sorts pending tasks by:
-1. **Priority**: `CRITICAL` > `HIGH` > `MEDIUM` > `LOW`.
-2. **Due Date**: Earliest first (nulls sorted last).
-3. **Creation Time**: Oldest created tasks first.
+### 1. Create Task
+- **Route**: `POST /api/tasks`
+- **Request Body**:
+  ```json
+  {
+    "id": "task-1",
+    "title": "Build API",
+    "priority": "HIGH",
+    "status": "PENDING",
+    "dueDate": "2026-08-15T18:00:00",
+    "estimatedHours": 4.5
+  }
+  ```
+- **Responses**:
+  - `201 Created`: Returns the created task entity with a generation timestamp.
+  - `400 Bad Request`: Validation failure (e.g. blank title) or duplicate task ID.
+
+### 2. List Tasks (with optional Status Filter)
+- **Route**: `GET /api/tasks?status=PENDING`
+- **Request Parameters**:
+  - `status` (Optional): Filter tasks by state (`PENDING`, `IN_PROGRESS`, `COMPLETED`).
+- **Responses**:
+  - `200 OK`: Returns an array of tasks.
+
+### 3. Update Task Status
+- **Route**: `PATCH /api/tasks/{id}?status=IN_PROGRESS`
+- **Responses**:
+  - `200 OK`: Returns the updated task.
+  - `404 Not Found`: Task with the specified ID does not exist.
+
+### 4. Delete Task
+- **Route**: `DELETE /api/tasks/{id}`
+- **Responses**:
+  - `204 No Content`: Task deleted successfully.
+  - `404 Not Found`: Task does not exist.
+
+### 5. Get Next Recommended Pending Task
+- **Route**: `GET /api/tasks/next-recommended?strategy=DEFAULT`
+- **Request Parameters**:
+  - `strategy` (Optional): Name of the sorting algorithm to run (defaults to `DEFAULT`).
+- **Responses**:
+  - `200 OK`: Returns the highest-priority pending task based on deterministic sorting rules.
+  - `404 Not Found`: No pending tasks exist.
 
 ---
 
