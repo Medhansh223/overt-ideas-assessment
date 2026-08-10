@@ -16,22 +16,6 @@ public final class DependencyPlanner {
 
     private static final Logger logger = LoggerFactory.getLogger(DependencyPlanner.class);
 
-    // States for three-color DFS cycle detection
-    private enum NodeState {
-        UNVISITED, // White
-        VISITING,  // Grey (currently in the recursion stack)
-        VISITED    // Black (fully processed)
-    }
-
-    /**
-     * Plans a valid execution order of tasks based on their dependencies.
-     * Time Complexity: O(V + E)
-     * Space Complexity: O(V + E)
-     *
-     * @param tasks The list of tasks and their dependencies.
-     * @return A list of task IDs in a valid execution order.
-     * @throws DependencyPlannerException if cyclic or missing dependencies are detected.
-     */
     public List<String> planExecutionOrder(List<TaskNode> tasks) {
         logger.info("Initializing dependency planning for {} tasks", tasks == null ? 0 : tasks.size());
         if (tasks == null) {
@@ -49,16 +33,13 @@ public final class DependencyPlanner {
             taskMap.put(task.id(), task);
         }
 
-        Map<String, NodeState> stateMap = new HashMap<>();
-        for (String taskId : taskMap.keySet()) {
-            stateMap.put(taskId, NodeState.UNVISITED);
-        }
-
+        Set<String> visiting = new HashSet<>();
+        Set<String> visited = new HashSet<>();
         List<String> executionOrder = new ArrayList<>();
 
         for (String taskId : taskMap.keySet()) {
-            if (stateMap.get(taskId) == NodeState.UNVISITED) {
-                depthFirstSearch(taskId, taskMap, stateMap, executionOrder);
+            if (!visited.contains(taskId)) {
+                depthFirstSearch(taskId, taskMap, visiting, visited, executionOrder);
             }
         }
 
@@ -66,8 +47,8 @@ public final class DependencyPlanner {
         return executionOrder;
     }
 
-    private void depthFirstSearch(String nodeId, Map<String, TaskNode> taskMap, Map<String, NodeState> stateMap, List<String> executionOrder) {
-        stateMap.put(nodeId, NodeState.VISITING);
+    private void depthFirstSearch(String nodeId, Map<String, TaskNode> taskMap, Set<String> visiting, Set<String> visited, List<String> executionOrder) {
+        visiting.add(nodeId);
 
         TaskNode task = taskMap.get(nodeId);
         if (task != null && task.dependsOn() != null) {
@@ -78,20 +59,20 @@ public final class DependencyPlanner {
                     throw new MissingDependencyException(errorMsg);
                 }
 
-                NodeState depState = stateMap.get(dependencyId);
-                if (depState == NodeState.VISITING) {
+                if (visiting.contains(dependencyId)) {
                     String errorMsg = DependencyPlannerConstants.CYCLIC_DEPENDENCY_DETECTED + nodeId + " -> " + dependencyId;
                     logger.error("Cyclic dependency loop detected: {}", errorMsg);
                     throw new CircularDependencyException(errorMsg);
                 }
 
-                if (depState == NodeState.UNVISITED) {
-                    depthFirstSearch(dependencyId, taskMap, stateMap, executionOrder);
+                if (!visited.contains(dependencyId)) {
+                    depthFirstSearch(dependencyId, taskMap, visiting, visited, executionOrder);
                 }
             }
         }
 
-        stateMap.put(nodeId, NodeState.VISITED);
+        visiting.remove(nodeId);
+        visited.add(nodeId);
         executionOrder.add(nodeId);
     }
 }
