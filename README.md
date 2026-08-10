@@ -164,7 +164,7 @@ The recommendation engine retrieves pending tasks and sorts them:
 
 ---
 
-## API Documentation
+## API Documentation (Current Implementation)
 
 Below is the specification of the REST API endpoints. You can also view and test these interactively via the built-in Swagger UI.
 
@@ -205,9 +205,7 @@ Below is the specification of the REST API endpoints. You can also view and test
   - `404 Not Found`: Task does not exist.
 
 ### 5. Get Next Recommended Pending Task
-- **Route**: `GET /api/tasks/next-recommended?strategy=DEFAULT`
-- **Request Parameters**:
-  - `strategy` (Optional): Name of the sorting algorithm to run (defaults to `DEFAULT`).
+- **Route**: `GET /api/tasks/next-recommended`
 - **Responses**:
   - `200 OK`: Returns the highest-priority pending task based on deterministic sorting rules.
   - `404 Not Found`: No pending tasks exist.
