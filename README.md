@@ -258,8 +258,23 @@ Below is the specification of the REST API endpoints. You can also view and test
 - JDK 17 must be installed and configured on your system (if running locally).
 - Docker must be installed (if running containerized).
 
-### Option 1: Run inside Docker (Recommended)
-You can run the application without installing any Java tools on your host machine:
+---
+
+### Part A: Dependency Planner (Topological Sort Library)
+
+#### Option 1: Execute Standalone Program (Locally)
+To compile and execute the standalone CLI program for topological sorting:
+```bash
+export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
+./mvnw compile exec:java -Dexec.mainClass="com.overt.assessment.planner.Solution"
+```
+
+---
+
+### Part B: Smart Task Queue API
+
+#### Option 2: Run inside Docker (Recommended)
+You can run the web service containerized without installing any Java tools locally:
 ```bash
 # 1. Build the Docker image
 docker build -t task-queue-app .
@@ -268,7 +283,7 @@ docker build -t task-queue-app .
 docker run -p 8080:8080 task-queue-app
 ```
 
-### Option 2: Run Locally (Using Maven Wrapper)
+#### Option 3: Run Locally (Using Maven Wrapper)
 If running locally:
 ```bash
 # Compile and run tests
@@ -279,13 +294,8 @@ export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
 ./mvnw spring-boot:run
 ```
 
-### Option 3: Execute Part A Standalone (Topological Sort Planner)
-To execute the standalone CLI program for topological sorting:
-```bash
-export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
-./mvnw compile exec:java -Dexec.mainClass="com.overt.assessment.planner.Solution"
-```
+---
 
-### Verification & DB Access
+### Verification & DB Access (For Part B)
 - **Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 - **H2 Database Console**: [http://localhost:8080/h2-console](http://localhost:8080/h2-console) (JDBC URL: `jdbc:h2:file:./data/tasksdb`, Username: `sa`, Password: `password`).
