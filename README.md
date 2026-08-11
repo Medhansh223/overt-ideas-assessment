@@ -279,6 +279,13 @@ export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
 ./mvnw spring-boot:run
 ```
 
+### Option 3: Execute Part A Standalone (Topological Sort Planner)
+To execute the standalone CLI program for topological sorting:
+```bash
+export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
+./mvnw compile exec:java -Dexec.mainClass="com.overt.assessment.planner.Solution"
+```
+
 ### Verification & DB Access
 - **Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 - **H2 Database Console**: [http://localhost:8080/h2-console](http://localhost:8080/h2-console) (JDBC URL: `jdbc:h2:file:./data/tasksdb`, Username: `sa`, Password: `password`).
