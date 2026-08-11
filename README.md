@@ -262,7 +262,6 @@ Below is the specification of the REST API endpoints. You can also view and test
 
 ### Part A: Dependency Planner (Topological Sort Library)
 
-#### Option 1: Execute Standalone Program (Locally)
 To compile and execute the standalone CLI program for topological sorting:
 ```bash
 export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
@@ -273,7 +272,7 @@ export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
 
 ### Part B: Smart Task Queue API
 
-#### Option 2: Run inside Docker (Recommended)
+#### Option 1: Run inside Docker (Recommended)
 You can run the web service containerized without installing any Java tools locally:
 ```bash
 # 1. Build the Docker image
@@ -283,7 +282,7 @@ docker build -t task-queue-app .
 docker run -p 8080:8080 task-queue-app
 ```
 
-#### Option 3: Run Locally (Using Maven Wrapper)
+#### Option 2: Run Locally (Using Maven Wrapper)
 If running locally:
 ```bash
 # Compile and run tests
