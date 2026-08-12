@@ -192,10 +192,10 @@ We implemented topological sorting using a depth-first search (DFS) with a visit
 - **Space Complexity**: $\mathcal{O}(V + E)$ to store the adjacency list representation, the recursion stack, and the index translation maps.
 
 ### Part B - Smart Task Queue API
-The recommendation engine retrieves pending tasks and sorts them:
+The recommendation engine retrieves pending tasks and processes them:
 - **Time Complexity**:
   - **CRUD Operations (Create, Update, Delete)**: $\mathcal{O}(1)$ average lookup and writes using database indexes on the primary key.
-  - **Next Task Recommendation**: $\mathcal{O}(N \log N)$ where $N$ is the number of pending tasks (due to sorting the tasks using the deterministic comparator).
+  - **Next Task Recommendation**: $\mathcal{O}(N)$ where $N$ is the number of pending tasks (due to a single linear pass using `.min()` with the custom comparator).
 - **Space Complexity**:
   - **Memory Space**: $\mathcal{O}(N)$ where $N$ is the number of pending tasks loaded into memory for processing.
   - **Database Storage**: $\mathcal{O}(T)$ where $T$ is the total tasks stored in the H2 file database.
