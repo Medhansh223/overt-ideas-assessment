@@ -181,6 +181,7 @@ While optional, we implemented the following enhancements to maximize production
 2. **Database Pagination**: Exposes Spring Data JPA `Page` and `Pageable` parameters on list operations, ensuring JVM/Database memory bounds.
 3. **Structured Logging**: Logback integration (`logback-spring.xml`) configured to log unified metadata format.
 4. **API Documentation**: Auto-generated Swagger interactive documentation UI via Springdoc OpenAPI.
+5. **DevOps & Tools**: Docker, Git, GitHub, Cursor, IntelliJ, Postman, Grafana & Prometheus (Monitoring)
 
 ---
 

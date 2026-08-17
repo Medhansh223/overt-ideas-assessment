@@ -58,6 +58,32 @@ class TaskControllerTest {
     }
 
     @Test
+    void func1() throws Exception {
+        // Arrange
+        TaskRequestDto invalidRequest = new TaskRequestDto("task-1", "jhihgiuh", TaskPriority.HIGH, TaskStatus.PENDING, null, 0.0);
+
+        // Act & Assert
+        mockMvc.perform(post(TaskQueueConstants.API_BASE_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.estimatedHours").value("Estimated hours must be greater than 0"));
+    }
+
+    @Test
+    void func2() throws Exception {
+        // Arrange
+        TaskRequestDto invalidRequest = new TaskRequestDto("task-1", "jhihgiuh", TaskPriority.HIGH, TaskStatus.PENDING, null, null);
+
+        // Act & Assert
+        mockMvc.perform(post(TaskQueueConstants.API_BASE_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.estimatedHours").value("Estimated hours is required"));
+    }
+
+    @Test
     void shouldReturnBadRequestWhenTitleIsMissing() throws Exception {
         // Arrange
         TaskRequestDto invalidRequest = new TaskRequestDto("task-1", "", TaskPriority.HIGH, TaskStatus.PENDING, null, 4.0);

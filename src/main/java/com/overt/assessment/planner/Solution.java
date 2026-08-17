@@ -7,7 +7,7 @@ public class Solution {
         DependencyPlanner planner = new DependencyPlanner();
 
         // Create tasks matching the PDF example
-        TaskNode design = new TaskNode("design", List.of());
+        TaskNode design = new TaskNode("design", List.of()); 
         TaskNode api = new TaskNode("api", List.of("design"));
         TaskNode ui = new TaskNode("ui", List.of("design"));
         TaskNode release = new TaskNode("release", List.of("api", "ui"));
@@ -20,3 +20,14 @@ public class Solution {
         System.out.println("Valid execution order is: " + String.join(", ", order));
     }
 }
+
+//  design -> 0 
+//  api -> 1
+//  ui -> 2
+//  release -> 3
+
+
+//  0 -> []
+//  1 -> [0]
+//  2 -> [0]
+//  3 -> [1,2]

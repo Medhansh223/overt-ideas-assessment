@@ -26,8 +26,8 @@ public final class DependencyPlanner {
         int n = tasks.size();
 
         // Map task IDs to integer indices (0 to n-1)
-        Map<String, Integer> idToIndexMap = new HashMap<>();
-        List<String> indexToIdMap = new ArrayList<>();
+        Map<String, Integer> idToIndexMap = new HashMap<>(); // api -> 0
+        List<String> indexToIdMap = new ArrayList<>(); // 0 -> api
         for (int i = 0; i < n; i++) {
             String taskId = tasks.get(i).id();
             if (idToIndexMap.containsKey(taskId)) {

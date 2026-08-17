@@ -3,6 +3,8 @@ package com.overt.assessment.taskqueue.dto;
 import com.overt.assessment.taskqueue.constant.TaskQueueConstants;
 import com.overt.assessment.taskqueue.entity.TaskPriority;
 import com.overt.assessment.taskqueue.entity.TaskStatus;
+
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,6 +24,7 @@ public record TaskRequestDto(
 
     LocalDateTime dueDate,
 
-    @Min(value = 0, message = TaskQueueConstants.FIELD_REQUIRED_ESTIMATED_HOURS)
+    @DecimalMin(value = "0.0", inclusive = false, message = "Estimated hours must be greater than 0")
+    @NotNull(message = "Estimated hours is required")
     Double estimatedHours
 ) {}
